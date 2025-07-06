@@ -155,7 +155,7 @@ export function EnhancedVideoPlayer({
     return () => document.removeEventListener('keydown', handleKeyPress);
   }, [playing, volume, muted, played, duration]);
 
-  const handleProgress = useCallback((state: { played: number; playedSeconds: number; loaded: number }) => {
+  const handleProgress = useCallback((state: any) => {
     setPlayed(state.played);
     setLoaded(state.loaded);
     
@@ -336,7 +336,7 @@ export function EnhancedVideoPlayer({
               default: sub.default
             }))
           }
-        }}
+        } as any}
       />
 
       {/* Loading indicator */}
