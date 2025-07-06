@@ -83,4 +83,17 @@ export async function GET(
     console.error('Video fetch error:', error);
     return NextResponse.json({ error: 'Failed to fetch video data' }, { status: 500 });
   }
+}
+
+export async function generateStaticParams() {
+  const apiKey = process.env.GOOGLE_DRIVE_API_KEY;
+  if (!apiKey) return [];
+  const library = await scanStreamingLibrary(apiKey);
+  const movieParams = library.movies.map(movie => ({ id: movie.id }));
+  const episodeParams = Object.values(library.series).flatMap(seriesData =>
+    Object.values(seriesData.seasons).flatMap(episodes =>
+      episodes.map(ep => ({ id: ep.id }))
+    )
+  );
+  return [...movieParams, ...episodeParams];
 } 

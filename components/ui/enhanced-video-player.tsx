@@ -310,19 +310,19 @@ export function EnhancedVideoPlayer({
       onTouchEnd={handleTouchEnd}
       onClick={() => isMobile && showControlsTemporarily()}
     >
-      <ReactPlayer
-        ref={playerRef}
-        url={src}
-        playing={playing}
-        volume={muted ? 0 : volume}
-        playbackRate={playbackRate}
-        width="100%"
-        height="100%"
-        onProgress={handleProgress}
-        onDuration={setDuration}
-        onPlay={() => setPlaying(true)}
-        onPause={() => setPlaying(false)}
-        config={{
+      {React.createElement(ReactPlayer as any, {
+        ref: playerRef,
+        url: src,
+        playing: playing,
+        volume: muted ? 0 : volume,
+        playbackRate: playbackRate,
+        width: "100%",
+        height: "100%",
+        onProgress: handleProgress,
+        onDuration: setDuration,
+        onPlay: () => setPlaying(true),
+        onPause: () => setPlaying(false),
+        config: {
           file: {
             attributes: {
               crossOrigin: 'anonymous',
@@ -336,8 +336,8 @@ export function EnhancedVideoPlayer({
               default: sub.default
             }))
           }
-        } as any}
-      />
+        }
+      })}
 
       {/* Loading indicator */}
       {loaded < 0.1 && (

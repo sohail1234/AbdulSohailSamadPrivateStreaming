@@ -112,8 +112,8 @@ export function MobileSearch({ items, onSelect, placeholder = "Search...", class
     inputRef.current?.focus();
   };
 
-  const uniqueYears = [...new Set(items.map(item => item.year).filter(Boolean))].sort().reverse();
-  const uniqueGenres = [...new Set(items.map(item => item.genre).filter(Boolean))].sort();
+  const uniqueYears = Array.from(new Set(items.map(item => item.year).filter(Boolean))).sort().reverse();
+  const uniqueGenres = Array.from(new Set(items.map(item => item.genre).filter(Boolean))).sort();
 
   return (
     <div ref={searchRef} className={`relative ${className}`}>

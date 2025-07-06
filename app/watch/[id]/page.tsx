@@ -1,11 +1,7 @@
-'use client';
-
-import { useState, useEffect } from 'react';
-import { useParams, useRouter } from 'next/navigation';
-import { EnhancedVideoPlayer } from '@/components/ui/enhanced-video-player';
+import { notFound } from 'next/navigation';
+import VideoClient from './VideoClient';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Download, Share2, MoreHorizontal } from 'lucide-react';
-import { addToHistory } from '@/lib/storage';
+import { ArrowLeft } from 'lucide-react';
 
 interface VideoData {
   id: string;
@@ -30,91 +26,109 @@ interface VideoData {
   outroStart?: number;
 }
 
-export default function WatchPage() {
-  const params = useParams();
-  const router = useRouter();
-  const [videoData, setVideoData] = useState<VideoData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+interface PageProps {
+  params: { id: string };
+}
 
-  useEffect(() => {
-    const loadVideo = async () => {
-      try {
-        const id = params.id as string;
-        
-        // Fetch video data from Google Drive
-        const response = await fetch(`/api/drive/video/${id}`);
-        
-        if (!response.ok) {
-          throw new Error(`Failed to fetch video: ${response.status}`);
+export async function generateStaticParams() {
+  const apiKey = process.env.GOOGLE_DRIVE_API_KEY;
+  if (!apiKey) return [];
+  const { scanStreamingLibrary } = await import('@/lib/drive-enhanced');
+  const library = await scanStreamingLibrary(apiKey);
+  const movieParams = library.movies.map(movie => ({ id: movie.id }));
+  const episodeParams = Object.values(library.series).flatMap(seriesData =>
+    Object.values(seriesData.seasons).flatMap(episodes =>
+      episodes.map(ep => ({ id: ep.id }))
+    )
+  );
+  return [...movieParams, ...episodeParams];
+}
+
+async function getVideoData(id: string): Promise<VideoData | null> {
+  try {
+    const apiKey = process.env.GOOGLE_DRIVE_API_KEY;
+    if (!apiKey) return null;
+    
+    const { scanStreamingLibrary } = await import('@/lib/drive-enhanced');
+    const library = await scanStreamingLibrary(apiKey);
+    
+    // Look for the video in movies
+    let videoData = library.movies.find(movie => movie.id === id);
+    
+    if (!videoData) {
+      // Look for the video in series episodes
+      for (const [seriesName, seriesData] of Object.entries(library.series)) {
+        for (const [seasonName, episodes] of Object.entries(seriesData.seasons)) {
+          const episode = episodes.find(ep => ep.id === id);
+          if (episode) {
+            videoData = {
+              id: episode.id,
+              title: episode.title,
+              type: 'series' as const,
+              year: undefined,
+              thumbnail: episode.thumbnail,
+              path: '', // Not needed for video data
+              subtitles: episode.subtitles,
+              duration: episode.duration,
+              resumePosition: episode.resumePosition
+            };
+            break;
+          }
         }
-        
-        const videoData: VideoData = await response.json();
-        setVideoData(videoData);
-      } catch (err) {
-        console.error('Error loading video:', err);
-        setError('Failed to load video');
-      } finally {
-        setLoading(false);
+        if (videoData) break;
       }
-    };
-
-    loadVideo();
-  }, [params.id]);
-
-  const handleProgress = (position: number) => {
-    if (videoData) {
-      // Update progress in storage
-      addToHistory({
-        id: videoData.id,
-        title: videoData.title,
-        type: 'movie',
-        position,
-        duration: videoData.duration
-      });
     }
-  };
-
-  const handleBack = () => {
-    router.back();
-  };
-
-  const handleShare = async () => {
-    if (navigator.share) {
-      try {
-        await navigator.share({
-          title: videoData?.title,
-          text: `Watch ${videoData?.title} on Abdul Sohail Samad Private Streaming`,
-          url: window.location.href
+    
+    if (!videoData) return null;
+    
+    // Get the video URL
+    const { fetchFileUrl } = await import('@/lib/api');
+    const videoUrl = await fetchFileUrl(videoData.id);
+    
+    // Generate chapters based on duration (every 10 minutes)
+    const chapters = [];
+    if (videoData.duration) {
+      const chapterInterval = 600; // 10 minutes in seconds
+      for (let i = 0; i < videoData.duration; i += chapterInterval) {
+        const minutes = Math.floor(i / 60);
+        chapters.push({
+          time: i,
+          title: `Chapter ${Math.floor(i / chapterInterval) + 1}`
         });
-      } catch (error) {
-        console.log('Error sharing:', error);
       }
-    } else {
-      // Fallback: copy to clipboard
-      navigator.clipboard.writeText(window.location.href);
     }
-  };
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-black flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-16 h-16 border-4 border-red-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-white text-lg">Loading video...</p>
-        </div>
-      </div>
-    );
+    
+    return {
+      id: videoData.id,
+      title: videoData.title,
+      description: `Watch ${videoData.title} online`,
+      year: videoData.year,
+      duration: videoData.duration,
+      videoUrl,
+      subtitles: videoData.subtitles,
+      chapters,
+      introStart: 10,
+      introEnd: 90,
+      outroStart: videoData.duration ? videoData.duration - 300 : undefined
+    };
+    
+  } catch (error) {
+    console.error('Video fetch error:', error);
+    return null;
   }
+}
 
-  if (error || !videoData) {
+export default async function WatchPage({ params }: PageProps) {
+  const videoData = await getVideoData(params.id);
+
+  if (!videoData) {
     return (
       <div className="min-h-screen bg-black flex items-center justify-center">
         <div className="text-center max-w-md mx-auto px-4">
           <div className="text-red-500 text-6xl mb-4">⚠️</div>
           <h1 className="text-white text-2xl mb-2">Video Not Found</h1>
-          <p className="text-zinc-400 mb-4">{error || 'The requested video could not be found.'}</p>
-          <Button onClick={handleBack} className="bg-red-600 hover:bg-red-700">
+          <p className="text-zinc-400 mb-4">The requested video could not be found.</p>
+          <Button className="bg-red-600 hover:bg-red-700">
             <ArrowLeft className="w-4 h-4 mr-2" />
             Go Back
           </Button>
@@ -123,21 +137,5 @@ export default function WatchPage() {
     );
   }
 
-  return (
-    <div className="min-h-screen bg-black">
-      {/* Enhanced Video Player */}
-      <EnhancedVideoPlayer
-        src={videoData.videoUrl}
-        videoId={videoData.id}
-        title={videoData.title}
-        subtitles={videoData.subtitles}
-        chapters={videoData.chapters}
-        onProgress={handleProgress}
-        introStart={videoData.introStart}
-        introEnd={videoData.introEnd}
-        outroStart={videoData.outroStart}
-        className="h-screen"
-      />
-    </div>
-  );
+  return <VideoClient videoData={videoData} />;
 }
