@@ -21,6 +21,12 @@ export async function GET(
     console.log('📡 Making request to Google Drive API for file:', fileId);
     console.log('📏 Range header:', rangeHeader);
     
+    // Test if this is a HEAD request (for testing)
+    if (request.method === 'HEAD') {
+      console.log('🔍 HEAD request received - testing API connectivity');
+      return new NextResponse(null, { status: 200 });
+    }
+    
     // Get the direct download URL from Google Drive API
     const response = await fetch(
       `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media&key=${apiKey}`,
@@ -78,6 +84,14 @@ export async function GET(
     console.error('❌ Video streaming error:', error);
     return NextResponse.json({ error: 'Failed to stream video' }, { status: 500 });
   }
+}
+
+export async function HEAD(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  console.log('🔍 HEAD request for streaming API test');
+  return new NextResponse(null, { status: 200 });
 }
 
 export async function generateStaticParams() {
