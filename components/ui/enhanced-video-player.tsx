@@ -343,14 +343,15 @@ export function EnhancedVideoPlayer({
       onTouchEnd={handleTouchEnd}
       onClick={() => isMobile && showControlsTemporarily()}
     >
-      {React.createElement(ReactPlayer as any, {
-        ref: playerRef,
-        url: src,
-        playing: playing,
-        volume: muted ? 0 : volume,
-        playbackRate: playbackRate,
-        width: "100%",
-        height: "100%",
+      <ReactPlayer
+        ref={playerRef}
+        url={src}
+        playing={playing}
+        volume={volume}
+        muted={muted}
+        playbackRate={playbackRate}
+        width="100%"
+        height="100%"
         onProgress: (state: any) => {
           console.log('📊 Progress update:', state);
           handleProgress(state);
@@ -385,25 +386,44 @@ export function EnhancedVideoPlayer({
         onCanPlayThrough: () => {
           console.log('🚀 Video can play through');
         },
+        onBuffer: () => {
+          console.log('📦 Video buffering');
+        },
+        onBufferEnd: () => {
+          console.log('✅ Video buffer complete');
+        },
+        onSeek: (seekTime: number) => {
+          console.log('🔍 Video seeking to:', seekTime);
+        },
+        onStart: () => {
+          console.log('🚀 Video playback started');
+        },
+        onEnded: () => {
+          console.log('🏁 Video playback ended');
+        },
         config: {
           file: {
             attributes: {
               crossOrigin: 'anonymous',
-              preload: 'auto',
+              preload: 'metadata',
               controlsList: 'nodownload',
               disablePictureInPicture: false,
-              playsInline: true
+              onLoadStart: () => console.log('🎬 File load start'),
+              onLoadedMetadata: () => console.log('📋 File metadata loaded'),
+              onCanPlay: () => console.log('🎯 File can play'),
+              onError: (e: any) => console.error('❌ File error:', e)
             },
-            tracks: subtitles.map(sub => ({
-              kind: 'subtitles',
-              src: sub.src,
-              srcLang: sub.srcLang,
-              label: sub.label,
-              default: sub.default
-            }))
+            forceVideo: true,
+            forceHLS: false,
+            forceDASH: false,
+            hlsOptions: {
+              debug: true,
+              enableWorker: true,
+              lowLatencyMode: true
+            }
           }
         }
-      })}
+      />
 
       {/* Loading indicator */}
       {loaded < 0.1 && (
