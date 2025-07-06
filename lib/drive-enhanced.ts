@@ -191,6 +191,8 @@ export async function scanStreamingLibrary(apiKey: string): Promise<{
   lastScanned: string;
 }> {
   try {
+    console.log('📚 Starting streaming library scan...');
+    
     // Use GOOGLE_DRIVE_ROOT_ID if set, otherwise find by name
     const envRootId = process.env.GOOGLE_DRIVE_ROOT_ID;
     let streamingFolderId: string | null = null;
@@ -198,141 +200,163 @@ export async function scanStreamingLibrary(apiKey: string): Promise<{
       streamingFolderId = envRootId;
       console.log('[Drive] Using GOOGLE_DRIVE_ROOT_ID from env:', streamingFolderId);
     } else {
+      console.log('[Drive] Finding streaming folder by name...');
       streamingFolderId = await findStreamingFolder(apiKey);
-      console.log('[Drive] Found Streaming folder by name:', streamingFolderId);
+      console.log('[Drive] Found streaming folder ID:', streamingFolderId);
     }
+    
     if (!streamingFolderId) {
+      console.error('[Drive] No streaming folder found');
       throw new Error('Streaming folder not found');
     }
     
-    const rootContents = await listFolderContentsEnhanced(streamingFolderId, apiKey);
-    const folders = rootContents.filter(file => file.mimeType === 'application/vnd.google-apps.folder');
+    console.log('[Drive] Listing contents of streaming folder...');
+    const streamingContents = await listFolderContentsEnhanced(streamingFolderId, apiKey);
+    console.log('[Drive] Streaming folder contains', streamingContents.length, 'items');
     
     const movies: ContentItem[] = [];
     const series: Record<string, { seasons: Record<string, Episode[]> }> = {};
     let totalFiles = 0;
     
-    // Process each folder
-    for (const folder of folders) {
-      const folderContents = await listFolderContentsEnhanced(folder.id, apiKey);
+    // Process each item in the streaming folder
+    for (const item of streamingContents) {
+      console.log('[Drive] Processing item:', item.name, 'Type:', item.mimeType);
       
-      if (folder.name.toLowerCase() === 'movies') {
-        // Process movies
-        const videoFiles = folderContents.filter(file => isVideoFile(file.name));
-        const subtitleFiles = folderContents.filter(file => isSubtitleFile(file.name));
+      if (item.mimeType === 'application/vnd.google-apps.folder') {
+        console.log('[Drive] Found folder:', item.name);
         
-        for (const videoFile of videoFiles) {
-          const parsed = parseFilenameEnhanced(videoFile.name);
-          const subtitles = getSubtitleTracks(videoFile, subtitleFiles);
-          const thumbnail = await generateThumbnail(videoFile.id, apiKey);
+        // Check if it's a series folder (contains season folders)
+        const folderContents = await listFolderContentsEnhanced(item.id, apiKey);
+        console.log('[Drive] Folder contents:', folderContents.length, 'items');
+        
+        const hasSeasonFolders = folderContents.some(f => 
+          f.mimeType === 'application/vnd.google-apps.folder' && 
+          /season\s*\d+/i.test(f.name)
+        );
+        
+        if (hasSeasonFolders) {
+          console.log('[Drive] Processing as series:', item.name);
+          // Process as series
+          const seriesData = { seasons: {} as Record<string, Episode[]> };
           
-          movies.push({
-            id: videoFile.id,
-            title: parsed.title,
-            type: 'movie',
-            year: parsed.year,
-            genre: parsed.genre,
-            quality: parsed.quality,
-            thumbnail: thumbnail || undefined,
-            path: folder.id,
-            subtitles,
-            duration: videoFile.videoMediaMetadata ? 
-              parseInt(videoFile.videoMediaMetadata.durationMillis) / 1000 : undefined,
-            fileSize: videoFile.size ? parseInt(videoFile.size) : undefined
-          });
-          totalFiles++;
-        }
-      } else {
-        // Process as series
-        const seriesName = folder.name;
-        if (!series[seriesName]) {
-          series[seriesName] = { seasons: {} };
-        }
-        
-        // Check if this folder contains seasons or episodes directly
-        const subFolders = folderContents.filter(file => file.mimeType === 'application/vnd.google-apps.folder');
-        
-        if (subFolders.length > 0) {
-          // Has season folders
-          for (const seasonFolder of subFolders) {
-            const seasonContents = await listFolderContentsEnhanced(seasonFolder.id, apiKey);
-            const videoFiles = seasonContents.filter(file => isVideoFile(file.name));
-            const subtitleFiles = seasonContents.filter(file => isSubtitleFile(file.name));
-            
-            const episodes: Episode[] = [];
-            
-            for (const videoFile of videoFiles) {
-              const parsed = parseFilenameEnhanced(videoFile.name);
-              const subtitles = getSubtitleTracks(videoFile, subtitleFiles);
-              const thumbnail = await generateThumbnail(videoFile.id, apiKey);
+          for (const seasonFolder of folderContents.filter(f => 
+            f.mimeType === 'application/vnd.google-apps.folder' && 
+            /season\s*\d+/i.test(f.name)
+          )) {
+            console.log('[Drive] Processing season folder:', seasonFolder.name);
+            const seasonNumber = seasonFolder.name.match(/season\s*(\d+)/i)?.[1];
+            if (seasonNumber) {
+              const seasonContents = await listFolderContentsEnhanced(seasonFolder.id, apiKey);
+              console.log('[Drive] Season contents:', seasonContents.length, 'items');
               
-              if (parsed.episode && parsed.season) {
-                episodes.push({
-                  id: videoFile.id,
-                  title: parsed.title,
-                  episode: parsed.episode,
-                  season: parsed.season,
-                  duration: videoFile.videoMediaMetadata ? 
-                    parseInt(videoFile.videoMediaMetadata.durationMillis) / 1000 : undefined,
-                  thumbnail: thumbnail || undefined,
-                  subtitles
-                });
-                totalFiles++;
+              const episodes: Episode[] = [];
+              for (const episodeFile of seasonContents.filter(f => isVideoFile(f.name))) {
+                console.log('[Drive] Processing episode file:', episodeFile.name);
+                const parsed = parseFilenameEnhanced(episodeFile.name);
+                console.log('[Drive] Parsed episode data:', parsed);
+                
+                                 if (parsed.episode) {
+                   const subtitleFiles = seasonContents.filter(f => isSubtitleFile(f.name));
+                   const subtitles = getSubtitleTracks(episodeFile, subtitleFiles);
+                   console.log('[Drive] Found subtitles:', subtitles.length);
+                  
+                  episodes.push({
+                    id: episodeFile.id,
+                    title: parsed.title,
+                    episode: parsed.episode,
+                    season: parseInt(seasonNumber),
+                    duration: episodeFile.videoMediaMetadata?.durationMillis 
+                      ? Math.floor(parseInt(episodeFile.videoMediaMetadata.durationMillis) / 1000)
+                      : undefined,
+                    subtitles
+                  });
+                }
+              }
+              
+              if (episodes.length > 0) {
+                seriesData.seasons[`Season ${seasonNumber}`] = episodes;
+                console.log('[Drive] Added season with', episodes.length, 'episodes');
               }
             }
-            
-            series[seriesName].seasons[seasonFolder.name] = episodes.sort((a, b) => a.episode - b.episode);
+          }
+          
+          if (Object.keys(seriesData.seasons).length > 0) {
+            series[item.name] = seriesData;
+            console.log('[Drive] Added series:', item.name);
           }
         } else {
-          // Episodes directly in series folder
-          const videoFiles = folderContents.filter(file => isVideoFile(file.name));
-          const subtitleFiles = folderContents.filter(file => isSubtitleFile(file.name));
-          
-          const episodes: Episode[] = [];
-          
-          for (const videoFile of videoFiles) {
+          console.log('[Drive] Processing as movie folder:', item.name);
+          // Process as movie folder
+          for (const videoFile of folderContents.filter(f => isVideoFile(f.name))) {
+            console.log('[Drive] Processing movie file:', videoFile.name);
             const parsed = parseFilenameEnhanced(videoFile.name);
-            const subtitles = getSubtitleTracks(videoFile, subtitleFiles);
-            const thumbnail = await generateThumbnail(videoFile.id, apiKey);
+            console.log('[Drive] Parsed movie data:', parsed);
             
-            if (parsed.episode && parsed.season) {
-              episodes.push({
-                id: videoFile.id,
-                title: parsed.title,
-                episode: parsed.episode,
-                season: parsed.season,
-                duration: videoFile.videoMediaMetadata ? 
-                  parseInt(videoFile.videoMediaMetadata.durationMillis) / 1000 : undefined,
-                thumbnail: thumbnail || undefined,
-                subtitles
-              });
-              totalFiles++;
-            }
+                         const subtitleFiles = folderContents.filter(f => isSubtitleFile(f.name));
+             const subtitles = getSubtitleTracks(videoFile, subtitleFiles);
+             console.log('[Drive] Found subtitles:', subtitles.length);
+            
+            movies.push({
+              id: videoFile.id,
+              title: parsed.title,
+              type: 'movie',
+              year: parsed.year,
+              thumbnail: videoFile.thumbnailLink,
+              path: videoFile.id,
+              subtitles,
+              duration: videoFile.videoMediaMetadata?.durationMillis 
+                ? Math.floor(parseInt(videoFile.videoMediaMetadata.durationMillis) / 1000)
+                : undefined,
+              genre: parsed.genre,
+              quality: parsed.quality,
+              fileSize: videoFile.size ? parseInt(videoFile.size) : undefined
+            });
+            totalFiles++;
           }
-          
-          // Group by season
-          const seasonGroups = episodes.reduce((acc, episode) => {
-            const seasonKey = `Season ${episode.season}`;
-            if (!acc[seasonKey]) acc[seasonKey] = [];
-            acc[seasonKey].push(episode);
-            return acc;
-          }, {} as Record<string, Episode[]>);
-          
-          Object.entries(seasonGroups).forEach(([seasonName, seasonEpisodes]) => {
-            series[seriesName].seasons[seasonName] = seasonEpisodes.sort((a, b) => a.episode - b.episode);
-          });
         }
+      } else if (isVideoFile(item.name)) {
+        console.log('[Drive] Processing standalone video file:', item.name);
+        const parsed = parseFilenameEnhanced(item.name);
+        console.log('[Drive] Parsed standalone video data:', parsed);
+        
+                 const subtitleFiles = streamingContents.filter(f => isSubtitleFile(f.name));
+         const subtitles = getSubtitleTracks(item, subtitleFiles);
+         console.log('[Drive] Found subtitles:', subtitles.length);
+        
+        movies.push({
+          id: item.id,
+          title: parsed.title,
+          type: 'movie',
+          year: parsed.year,
+          thumbnail: item.thumbnailLink,
+          path: item.id,
+          subtitles,
+          duration: item.videoMediaMetadata?.durationMillis 
+            ? Math.floor(parseInt(item.videoMediaMetadata.durationMillis) / 1000)
+            : undefined,
+          genre: parsed.genre,
+          quality: parsed.quality,
+          fileSize: item.size ? parseInt(item.size) : undefined
+        });
+        totalFiles++;
       }
     }
     
+    console.log('[Drive] Scan complete:', {
+      movies: movies.length,
+      series: Object.keys(series).length,
+      totalFiles
+    });
+    
     return {
-      movies: movies.sort((a, b) => a.title.localeCompare(b.title)),
+      movies,
       series,
       totalFiles,
       lastScanned: new Date().toISOString()
     };
+    
   } catch (error) {
-    console.error('Error scanning library:', error);
+    console.error('[Drive] Error scanning streaming library:', error);
     throw error;
   }
 }

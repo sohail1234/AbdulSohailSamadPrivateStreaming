@@ -103,9 +103,21 @@ export function EnhancedVideoPlayer({
   const [touchStart, setTouchStart] = useState<{ x: number; y: number } | null>(null);
   const [isMobile, setIsMobile] = useState(false);
 
+  // Debug logging
+  useEffect(() => {
+    console.log('🎬 EnhancedVideoPlayer initialized with:', {
+      src,
+      videoId,
+      title,
+      subtitles: subtitles.length,
+      chapters: chapters.length
+    });
+  }, [src, videoId, title, subtitles.length, chapters.length]);
+
   useEffect(() => {
     setIsMobile(/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent));
     setIsPiPSupported('pictureInPictureEnabled' in document);
+    console.log('📱 Device detection:', { isMobile, isPiPSupported });
   }, []);
 
   // Handle initial play state to prevent AbortError
@@ -115,11 +127,12 @@ export function EnhancedVideoPlayer({
       const timer = setTimeout(() => {
         if (playerRef.current && playing) {
           try {
+            console.log('▶️ Attempting to play video...');
             playerRef.current.getInternalPlayer()?.play().catch((error: any) => {
-              console.log('Playback error (non-critical):', error);
+              console.log('❌ Playback error (non-critical):', error);
             });
           } catch (error) {
-            console.log('Player error (non-critical):', error);
+            console.log('❌ Player error (non-critical):', error);
           }
         }
       }, 100);
@@ -338,21 +351,39 @@ export function EnhancedVideoPlayer({
         playbackRate: playbackRate,
         width: "100%",
         height: "100%",
-        onProgress: handleProgress,
-        onDuration: setDuration,
-        onPlay: () => setPlaying(true),
-        onPause: () => setPlaying(false),
+        onProgress: (state: any) => {
+          console.log('📊 Progress update:', state);
+          handleProgress(state);
+        },
+        onDuration: (duration: number) => {
+          console.log('⏱️ Duration set:', duration);
+          setDuration(duration);
+        },
+        onPlay: () => {
+          console.log('▶️ Video started playing');
+          setPlaying(true);
+        },
+        onPause: () => {
+          console.log('⏸️ Video paused');
+          setPlaying(false);
+        },
         onError: (error: any) => {
-          console.error('Video player error:', error);
+          console.error('❌ Video player error:', error);
         },
         onReady: () => {
-          console.log('Video player ready');
+          console.log('✅ Video player ready');
         },
         onLoadStart: () => {
-          console.log('Video loading started');
+          console.log('🔄 Video loading started');
         },
         onLoadedData: () => {
-          console.log('Video data loaded');
+          console.log('📦 Video data loaded');
+        },
+        onCanPlay: () => {
+          console.log('🎯 Video can play');
+        },
+        onCanPlayThrough: () => {
+          console.log('🚀 Video can play through');
         },
         config: {
           file: {

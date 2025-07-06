@@ -36,6 +36,26 @@ interface VideoClientProps {
 
 export default function VideoClient({ videoData }: VideoClientProps) {
   const router = useRouter();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    console.log('🎬 VideoClient mounted with data:', {
+      id: videoData.id,
+      title: videoData.title,
+      videoUrl: videoData.videoUrl,
+      duration: videoData.duration,
+      subtitles: videoData.subtitles?.length || 0,
+      chapters: videoData.chapters?.length || 0
+    });
+    setMounted(true);
+  }, [videoData]);
+
+  if (!mounted) {
+    console.log('⏳ VideoClient not yet mounted');
+    return null;
+  }
+
+  console.log('🎬 Rendering VideoClient with video URL:', videoData.videoUrl);
 
   const handleProgress = (position: number) => {
     // Update progress in storage
