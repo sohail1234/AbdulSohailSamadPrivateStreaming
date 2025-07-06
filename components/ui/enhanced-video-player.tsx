@@ -348,13 +348,20 @@ export function EnhancedVideoPlayer({
         onReady: () => {
           console.log('Video player ready');
         },
+        onLoadStart: () => {
+          console.log('Video loading started');
+        },
+        onLoadedData: () => {
+          console.log('Video data loaded');
+        },
         config: {
           file: {
             attributes: {
               crossOrigin: 'anonymous',
-              preload: 'metadata',
+              preload: 'auto',
               controlsList: 'nodownload',
-              disablePictureInPicture: false
+              disablePictureInPicture: false,
+              playsInline: true
             },
             tracks: subtitles.map(sub => ({
               kind: 'subtitles',

@@ -68,7 +68,9 @@ export async function findStreamingFolder(apiKey: string): Promise<string | null
 }
 
 export function getDownloadUrl(fileId: string): string {
-  return `https://drive.google.com/uc?export=download&id=${fileId}`;
+  // Use the direct streaming URL format for better video playback
+  // This format works better for video streaming than the download URL
+  return `https://drive.google.com/file/d/${fileId}/view`;
 }
 
 export function isVideoFile(filename: string): boolean {
