@@ -108,6 +108,26 @@ export function EnhancedVideoPlayer({
     setIsPiPSupported('pictureInPictureEnabled' in document);
   }, []);
 
+  // Handle initial play state to prevent AbortError
+  useEffect(() => {
+    if (playerRef.current && playing) {
+      // Small delay to ensure the player is ready
+      const timer = setTimeout(() => {
+        if (playerRef.current && playing) {
+          try {
+            playerRef.current.getInternalPlayer()?.play().catch((error: any) => {
+              console.log('Playback error (non-critical):', error);
+            });
+          } catch (error) {
+            console.log('Player error (non-critical):', error);
+          }
+        }
+      }, 100);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [playing]);
+
   useEffect(() => {
     const savedPosition = localStorage.getItem(`resume:${videoId}`);
     if (savedPosition && playerRef.current) {
@@ -322,11 +342,19 @@ export function EnhancedVideoPlayer({
         onDuration: setDuration,
         onPlay: () => setPlaying(true),
         onPause: () => setPlaying(false),
+        onError: (error: any) => {
+          console.error('Video player error:', error);
+        },
+        onReady: () => {
+          console.log('Video player ready');
+        },
         config: {
           file: {
             attributes: {
               crossOrigin: 'anonymous',
-              preload: 'metadata'
+              preload: 'metadata',
+              controlsList: 'nodownload',
+              disablePictureInPicture: false
             },
             tracks: subtitles.map(sub => ({
               kind: 'subtitles',
@@ -575,7 +603,7 @@ export function EnhancedVideoPlayer({
                     <SelectValue placeholder="Select subtitles" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Off</SelectItem>
+                    <SelectItem value="off">Off</SelectItem>
                     {subtitles.map((sub) => (
                       <SelectItem key={sub.srcLang} value={sub.srcLang}>
                         {sub.label}
