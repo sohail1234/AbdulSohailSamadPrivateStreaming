@@ -82,8 +82,8 @@ async function getVideoData(id: string): Promise<VideoData | null> {
     
     if (!videoData) return null;
     
-    // Get the video URL directly using getDownloadUrl
-    const videoUrl = getDownloadUrl(videoData.id);
+    // Get the video URL using our streaming API
+    const videoUrl = `/api/drive/stream/${videoData.id}`;
     
     // Generate chapters based on duration (every 10 minutes)
     const chapters = [];

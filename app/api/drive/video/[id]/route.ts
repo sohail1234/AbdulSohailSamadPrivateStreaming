@@ -49,8 +49,8 @@ export async function GET(
       return NextResponse.json({ error: 'Video not found' }, { status: 404 });
     }
     
-    // Get the video URL directly using getDownloadUrl
-    const videoUrl = getDownloadUrl(videoId);
+    // Get the video URL using our streaming API
+    const videoUrl = `/api/drive/stream/${videoId}`;
     
     // Generate chapters based on duration (every 10 minutes)
     const chapters = [];
