@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { fetchFileUrl } from '@/lib/api';
+import { getDownloadUrl } from '@/lib/drive';
 import { scanStreamingLibrary } from '@/lib/drive-enhanced';
 
 export async function GET(
@@ -49,8 +49,8 @@ export async function GET(
       return NextResponse.json({ error: 'Video not found' }, { status: 404 });
     }
     
-    // Get the video URL
-    const videoUrl = await fetchFileUrl(videoId);
+    // Get the video URL directly using getDownloadUrl
+    const videoUrl = getDownloadUrl(videoId);
     
     // Generate chapters based on duration (every 10 minutes)
     const chapters = [];

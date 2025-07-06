@@ -50,6 +50,7 @@ async function getVideoData(id: string): Promise<VideoData | null> {
     if (!apiKey) return null;
     
     const { scanStreamingLibrary } = await import('@/lib/drive-enhanced');
+    const { getDownloadUrl } = await import('@/lib/drive');
     const library = await scanStreamingLibrary(apiKey);
     
     // Look for the video in movies
@@ -81,9 +82,8 @@ async function getVideoData(id: string): Promise<VideoData | null> {
     
     if (!videoData) return null;
     
-    // Get the video URL
-    const { fetchFileUrl } = await import('@/lib/api');
-    const videoUrl = await fetchFileUrl(videoData.id);
+    // Get the video URL directly using getDownloadUrl
+    const videoUrl = getDownloadUrl(videoData.id);
     
     // Generate chapters based on duration (every 10 minutes)
     const chapters = [];
