@@ -1,0 +1,25 @@
+{
+  "name": "Abdul Sohail Samad Private Streaming",
+  "short_name": "ASS Streaming",
+  "description": "Your personal entertainment hub with advanced streaming capabilities",
+  "start_url": "/",
+  "display": "fullscreen",
+  "background_color": "#000000",
+  "theme_color": "#e50914",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "/icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["entertainment", "multimedia"]
+}
