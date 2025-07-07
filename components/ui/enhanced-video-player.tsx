@@ -112,6 +112,23 @@ export function EnhancedVideoPlayer({
       subtitles: subtitles.length,
       chapters: chapters.length
     });
+    
+    // Test network connectivity to the video URL
+    const testVideoUrl = async () => {
+      try {
+        console.log('🌐 Testing video URL connectivity:', src);
+        const response = await fetch(src, { method: 'HEAD' });
+        console.log('✅ Video URL test response:', response.status, response.statusText);
+        
+        if (!response.ok) {
+          console.error('❌ Video URL test failed:', response.status, response.statusText);
+        }
+      } catch (error) {
+        console.error('❌ Video URL test error:', error);
+      }
+    };
+    
+    testVideoUrl();
   }, [src, videoId, title, subtitles.length, chapters.length]);
 
   useEffect(() => {
@@ -352,77 +369,59 @@ export function EnhancedVideoPlayer({
         playbackRate={playbackRate}
         width="100%"
         height="100%"
-        onProgress: (state: any) => {
+        crossOrigin="anonymous"
+        preload="metadata"
+        controlsList="nodownload"
+        disablePictureInPicture={false}
+        onProgress={(state: any) => {
           console.log('📊 Progress update:', state);
           handleProgress(state);
-        },
-        onDuration: (duration: number) => {
+        }}
+        onDuration={(duration: number) => {
           console.log('⏱️ Duration set:', duration);
           setDuration(duration);
-        },
-        onPlay: () => {
+        }}
+        onPlay={() => {
           console.log('▶️ Video started playing');
           setPlaying(true);
-        },
-        onPause: () => {
+        }}
+        onPause={() => {
           console.log('⏸️ Video paused');
           setPlaying(false);
-        },
-        onError: (error: any) => {
+        }}
+        onError={(error: any) => {
           console.error('❌ Video player error:', error);
-        },
-        onReady: () => {
+        }}
+        onReady={() => {
           console.log('✅ Video player ready');
-        },
-        onLoadStart: () => {
+        }}
+        onLoadStart={() => {
           console.log('🔄 Video loading started');
-        },
-        onLoadedData: () => {
+        }}
+        onLoadedData={() => {
           console.log('📦 Video data loaded');
-        },
-        onCanPlay: () => {
+        }}
+        onCanPlay={() => {
           console.log('🎯 Video can play');
-        },
-        onCanPlayThrough: () => {
+        }}
+        onCanPlayThrough={() => {
           console.log('🚀 Video can play through');
-        },
-        onBuffer: () => {
+        }}
+        onBuffer={() => {
           console.log('📦 Video buffering');
-        },
-        onBufferEnd: () => {
+        }}
+        onBufferEnd={() => {
           console.log('✅ Video buffer complete');
-        },
-        onSeek: (seekTime: number) => {
+        }}
+        onSeek={(seekTime: number) => {
           console.log('🔍 Video seeking to:', seekTime);
-        },
-        onStart: () => {
+        }}
+        onStart={() => {
           console.log('🚀 Video playback started');
-        },
-        onEnded: () => {
+        }}
+        onEnded={() => {
           console.log('🏁 Video playback ended');
-        },
-        config: {
-          file: {
-            attributes: {
-              crossOrigin: 'anonymous',
-              preload: 'metadata',
-              controlsList: 'nodownload',
-              disablePictureInPicture: false,
-              onLoadStart: () => console.log('🎬 File load start'),
-              onLoadedMetadata: () => console.log('📋 File metadata loaded'),
-              onCanPlay: () => console.log('🎯 File can play'),
-              onError: (e: any) => console.error('❌ File error:', e)
-            },
-            forceVideo: true,
-            forceHLS: false,
-            forceDASH: false,
-            hlsOptions: {
-              debug: true,
-              enableWorker: true,
-              lowLatencyMode: true
-            }
-          }
-        }
+        }}
       />
 
       {/* Loading indicator */}
