@@ -362,7 +362,7 @@ export function EnhancedVideoPlayer({
     >
       <ReactPlayer
         ref={playerRef}
-        url={src}
+        src={src}
         playing={playing}
         volume={volume}
         muted={muted}
@@ -377,7 +377,8 @@ export function EnhancedVideoPlayer({
           console.log('📊 Progress update:', state);
           handleProgress(state);
         }}
-        onDuration={(duration: number) => {
+        onLoadedMetadata={(event: React.SyntheticEvent<HTMLVideoElement>) => {
+          const duration = event.currentTarget.duration;
           console.log('⏱️ Duration set:', duration);
           setDuration(duration);
         }}
@@ -394,27 +395,6 @@ export function EnhancedVideoPlayer({
         }}
         onReady={() => {
           console.log('✅ Video player ready');
-        }}
-        onLoadStart={() => {
-          console.log('🔄 Video loading started');
-        }}
-        onLoadedData={() => {
-          console.log('📦 Video data loaded');
-        }}
-        onCanPlay={() => {
-          console.log('🎯 Video can play');
-        }}
-        onCanPlayThrough={() => {
-          console.log('🚀 Video can play through');
-        }}
-        onBuffer={() => {
-          console.log('📦 Video buffering');
-        }}
-        onBufferEnd={() => {
-          console.log('✅ Video buffer complete');
-        }}
-        onSeek={(seekTime: number) => {
-          console.log('🔍 Video seeking to:', seekTime);
         }}
         onStart={() => {
           console.log('🚀 Video playback started');
